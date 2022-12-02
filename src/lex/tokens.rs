@@ -9,10 +9,11 @@ pub enum TokenKind {
     StringLiteral(String),
     End,
     Semicolon,
-    LBrace,
-    RBrace,
-    LParen,
-    RParen,
+    DollarSign,
+    SingleQuote,
+    DoubleQuote,
+    Hash,
+    Space,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

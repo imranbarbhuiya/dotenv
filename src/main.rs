@@ -7,9 +7,9 @@ fn main() -> std::io::Result<()> {
         panic!("Problem parsing arguments: {err}");
     });
 
-    let store = parse_content(&file_contents);
+    let values = parse_content(&file_contents);
 
-    for (key, value) in store {
+    for (key, value) in values {
         println!("{} == {}\n", key, value);
     }
 

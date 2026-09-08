@@ -1,4 +1,4 @@
-//! Fast, dependency-free dotenv parsing and formatting-preserving editing.
+//! Fast dotenv parsing, loading, and variable expansion.
 
 mod expand;
 mod loader;

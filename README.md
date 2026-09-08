@@ -53,11 +53,11 @@ dotenv --file .env.production
     --no-command-substitution  Disable $(command) evaluation
 ```
 
-Tagged releases build downloadable binaries for Linux, Intel/Apple Silicon
-macOS, and Windows. Extract the appropriate archive and place `dotenv` (or
-`dotenv.exe`) on `PATH`.
+Tagged [GitHub releases](https://github.com/imranbarbhuiya/dotenv/releases)
+provide binaries for Linux, Intel/Apple Silicon macOS, and Windows. Extract the
+appropriate archive and place `dotenv` (or `dotenv.exe`) on `PATH`.
 
-## Tests and benchmarks
+## Tests
 
 ```bash
 cargo test --all-targets
@@ -65,15 +65,26 @@ cargo clippy --all-targets -- -D warnings
 cargo bench
 ```
 
-Criterion compares this crate with Rust `dotenv` 0.15.0 and `dotenv-ng`
-1.0.0. The external suite adds npm `dotenv`'s regular and fast parsers and npm
-`dotenv-expand`:
+Criterion covers library parsing and expansion. See
+[`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) for current methodology and
+measurements.
+
+## CLI benchmarks
+
+The reproducible end-to-end suite compares this CLI with Rust `dotenv` 0.15.0,
+Rust `dotenv-ng` 1.0.0, npm `dotenv` 17.4.2, and npm `dotenv-expand` 1000.0.0:
 
 ```bash
-cd benchmarks
-./compare.sh 100
+./benchmarks/compare.sh
 ```
 
-The runners repeat work inside each process so startup does not dominate parser
-measurements. See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for test
-provenance and licenses.
+Every timed command loads the same literal-only fixture and launches the same
+child verifier. The harness checks every value and requires identical complete
+output before timing. Baselines without a command-runner CLI are clearly marked
+as wrappers; the suite makes no claim that all five have equivalent expansion
+semantics. It exports raw results and machine metadata, and the `CLI benchmarks`
+workflow ([runs and artifacts](https://github.com/imranbarbhuiya/dotenv/actions/workflows/benchmark.yml))
+publishes them as an artifact. See
+[`benchmarks/README.md`](benchmarks/README.md) for scope and reproduction details,
+and [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for provenance and
+licenses.

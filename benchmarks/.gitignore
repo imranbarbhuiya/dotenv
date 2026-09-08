@@ -1,0 +1,6 @@
+/.tools/
+/.build/
+/fixture.env
+/node_modules/
+/results/
+/rust-wrapper/target/

@@ -1,0 +1,38 @@
+{
+  "name": "dotenv-cli-benchmarks",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "dotenv-cli-benchmarks",
+      "dependencies": {
+        "dotenv": "17.4.2",
+        "dotenv-expand": "1000.0.0"
+      }
+    },
+    "node_modules/dotenv": {
+      "version": "17.4.2",
+      "resolved": "https://registry.npmjs.org/dotenv/-/dotenv-17.4.2.tgz",
+      "integrity": "sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==",
+      "license": "BSD-2-Clause",
+      "engines": {
+        "node": ">=12"
+      },
+      "funding": {
+        "url": "https://dotenvx.com"
+      }
+    },
+    "node_modules/dotenv-expand": {
+      "version": "1000.0.0",
+      "resolved": "https://registry.npmjs.org/dotenv-expand/-/dotenv-expand-1000.0.0.tgz",
+      "integrity": "sha512-3T4TtUjXm5iGKFEirqKjcDJ0EheFJbv9peb5xytC+HNu3l5Ygnu4dYE8yeqkppHMsh1If9C/A//EJu7IPtNu+A==",
+      "license": "BSD-3-Clause",
+      "engines": {
+        "node": ">=16"
+      },
+      "funding": {
+        "url": "https://dotenvx.com"
+      }
+    }
+  }
+}

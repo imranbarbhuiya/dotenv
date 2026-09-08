@@ -1,5 +1,6 @@
 use dotenv::{EnvMap, ExpandOptions, expand_with, load, load_from_path};
 use std::env;
+use std::io::{self, BufWriter, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
@@ -52,19 +53,22 @@ fn run() -> Result<u8, Box<dyn std::error::Error>> {
         }
     }
 
-    let mut parsed = EnvMap::new();
-    if paths.is_empty() {
-        parsed = load()?;
+    let parsed = if paths.is_empty() {
+        load()?
     } else {
+        let mut paths = paths.into_iter();
+        // Keep the first file's allocation instead of rehashing every entry.
+        let mut parsed = load_from_path(paths.next().expect("nonempty paths"))?;
         for path in paths {
             for (key, value) in load_from_path(path)? {
                 parsed.insert(key, value);
             }
         }
-    }
+        parsed
+    };
 
-    let process_env = env::vars().collect::<EnvMap>();
     let values = if should_expand {
+        let process_env = env::vars().collect::<EnvMap>();
         expand_with(
             &parsed,
             &process_env,
@@ -77,26 +81,38 @@ fn run() -> Result<u8, Box<dyn std::error::Error>> {
         parsed
     } else {
         let mut values = parsed;
-        for (key, value) in &process_env {
-            if values.contains_key(key) {
-                values.insert(key.clone(), value.clone());
+        for (key, inherited) in env::vars() {
+            if let Some(value) = values.get_mut(&key) {
+                *value = inherited;
             }
         }
         values
     };
 
     if command.is_empty() {
+        let stdout = io::stdout();
+        let mut output = BufWriter::new(stdout.lock());
         for (key, value) in values {
-            println!("{key}={value}");
+            writeln!(output, "{key}={value}")?;
         }
+        output.flush()?;
         return Ok(0);
     }
 
-    let status = Command::new(&command[0])
-        .args(&command[1..])
-        .envs(values)
-        .status()?;
-    Ok(status.code().unwrap_or(1).clamp(0, 255) as u8)
+    let mut child = Command::new(&command[0]);
+    child.args(&command[1..]).envs(values);
+    #[cfg(unix)]
+    {
+        // Replace the loader rather than retaining an idle parent process.
+        // This also preserves child exit signals and normal signal delivery.
+        use std::os::unix::process::CommandExt;
+        Err(child.exec().into())
+    }
+    #[cfg(not(unix))]
+    {
+        let status = child.status()?;
+        Ok(status.code().unwrap_or(1).clamp(0, 255) as u8)
+    }
 }
 
 fn print_help() {

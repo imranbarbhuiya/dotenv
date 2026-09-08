@@ -1,0 +1,57 @@
+name: CLI benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      entries:
+        description: Fixture entries
+        default: "1000"
+        type: string
+      runs:
+        description: Measured runs per candidate
+        default: "20"
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - benchmarks/**
+      - .github/workflows/benchmark.yml
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.93.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: npm
+          cache-dependency-path: benchmarks/npm-shrinkwrap.json
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            benchmarks/rust-wrapper
+      - name: Install pinned Hyperfine
+        run: cargo install hyperfine --version 1.19.0 --locked
+      - name: Run correctness gate and benchmarks
+        env:
+          BENCH_ENTRIES: ${{ inputs.entries || '1000' }}
+          BENCH_RUNS: ${{ inputs.runs || '20' }}
+          BENCH_WARMUP: "3"
+        run: ./benchmarks/compare.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-benchmark-${{ github.sha }}
+          path: benchmarks/results/
+          if-no-files-found: error
+          retention-days: 30

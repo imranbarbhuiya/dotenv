@@ -1,4 +1,5 @@
 use crate::EnvMap;
+use std::borrow::Cow;
 use std::env;
 use std::fmt;
 use std::io;
@@ -78,6 +79,9 @@ pub fn expand_with(
     options: ExpandOptions,
 ) -> Result<EnvMap, ExpandError> {
     let mut running = EnvMap::with_capacity(parsed.len());
+    // Reuse the recursion scratch space across entries. The current key is
+    // already checked separately by resolve, so it need not be cloned here.
+    let mut stack = Vec::new();
     for (key, literal) in parsed {
         let inherited = process_env.get(key).filter(|value| !value.is_empty());
         let mut value =
@@ -99,10 +103,9 @@ pub fn expand_with(
                 } else {
                     literal
                 };
-                let mut stack = vec![key.clone()];
                 expand_value(literal, key, parsed, process_env, &running, &mut stack)?
             };
-        if options.command_substitution {
+        if options.command_substitution && value.contains("$(") {
             value = evaluate_commands(&value)?;
         }
         running.insert(key.clone(), value);
@@ -118,6 +121,9 @@ fn expand_value(
     running: &EnvMap,
     stack: &mut Vec<String>,
 ) -> Result<String, ExpandError> {
+    if memchr::memchr(b'$', input.as_bytes()).is_none() {
+        return Ok(input.to_owned());
+    }
     let bytes = input.as_bytes();
     let mut output = String::with_capacity(input.len());
     let mut copy_start = 0;
@@ -180,29 +186,20 @@ fn expand_value(
     Ok(output)
 }
 
-fn expand_braced(
+fn expand_braced<'a>(
     expression: &str,
     current: &str,
     literals: &EnvMap,
-    process_env: &EnvMap,
-    running: &EnvMap,
+    process_env: &'a EnvMap,
+    running: &'a EnvMap,
     stack: &mut Vec<String>,
-) -> Result<String, ExpandError> {
+) -> Result<Cow<'a, str>, ExpandError> {
     let (name, operator, operand) = split_expression(expression);
     let resolved = resolve(name, current, literals, process_env, running, stack)?;
     let is_set = resolved.is_some();
     let is_nonempty = resolved.as_ref().is_some_and(|value| !value.is_empty());
-    let expand_operand = || {
-        let mut nested_stack = stack.clone();
-        expand_value(
-            operand,
-            current,
-            literals,
-            process_env,
-            running,
-            &mut nested_stack,
-        )
-    };
+    let mut expand_operand =
+        || expand_value(operand, current, literals, process_env, running, stack).map(Cow::Owned);
 
     match operator {
         None => Ok(resolved.unwrap_or_default()),
@@ -210,7 +207,7 @@ fn expand_braced(
         Some("-") if !is_set => expand_operand(),
         Some(":+") if is_nonempty => expand_operand(),
         Some("+") if is_set => expand_operand(),
-        Some(":+") | Some("+") => Ok(String::new()),
+        Some(":+") | Some("+") => Ok(Cow::Borrowed("")),
         Some(":?") if !is_nonempty => Err(ExpandError::RequiredVariable {
             name: name.to_owned(),
             message: operand.to_owned(),
@@ -223,22 +220,25 @@ fn expand_braced(
     }
 }
 
-fn resolve(
+fn resolve<'a>(
     name: &str,
     current: &str,
     literals: &EnvMap,
-    process_env: &EnvMap,
-    running: &EnvMap,
+    process_env: &'a EnvMap,
+    running: &'a EnvMap,
     stack: &mut Vec<String>,
-) -> Result<Option<String>, ExpandError> {
+) -> Result<Option<Cow<'a, str>>, ExpandError> {
     if name == current || stack.iter().any(|item| item == name) {
         return Ok(None);
     }
     if let Some(process_value) = process_env.get(name) {
         if literals.get(name) == Some(process_value) {
             if let Some(running_value) = running.get(name) {
-                return Ok(Some(running_value.clone()));
+                return Ok(Some(Cow::Borrowed(running_value)));
             }
+        }
+        if memchr::memchr(b'$', process_value.as_bytes()).is_none() {
+            return Ok(Some(Cow::Borrowed(process_value)));
         }
         stack.push(name.to_owned());
         let value = expand_value(
@@ -248,11 +248,11 @@ fn resolve(
             process_env,
             running,
             stack,
-        )?;
+        );
         stack.pop();
-        return Ok(Some(value));
+        return value.map(|value| Some(Cow::Owned(value)));
     }
-    Ok(running.get(name).cloned())
+    Ok(running.get(name).map(|value| Cow::Borrowed(value.as_str())))
 }
 
 fn split_expression(expression: &str) -> (&str, Option<&str>, &str) {

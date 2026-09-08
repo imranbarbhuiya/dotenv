@@ -338,6 +338,7 @@ dependencies = [
  "dotenv-ng",
  "dotenvx-primitives",
  "indexmap",
+ "memchr",
  "tempfile",
 ]
 

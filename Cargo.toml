@@ -24,6 +24,7 @@ path = "src/main.rs"
 [dependencies]
 dotenvx-primitives = "=2.2.0"
 indexmap = "2.11"
+memchr = "2.8"
 
 [dev-dependencies]
 criterion = "0.7"

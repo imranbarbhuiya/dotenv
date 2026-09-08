@@ -17,10 +17,10 @@ jobs:
           - runner: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             executable: dotenv
-          - runner: macos-13
+          - runner: macos-15-intel
             target: x86_64-apple-darwin
             executable: dotenv
-          - runner: macos-14
+          - runner: macos-15
             target: aarch64-apple-darwin
             executable: dotenv
           - runner: windows-2025
@@ -51,6 +51,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts

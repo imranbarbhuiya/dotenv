@@ -1,0 +1,21 @@
+[package]
+name = "dotenv-cli-benchmark-wrappers"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+dotenv-upstream = { package = "dotenv", version = "=0.15.0" }
+
+[[bin]]
+name = "dotenv015-wrapper"
+path = "src/dotenv015_wrapper.rs"
+
+[[bin]]
+name = "verify-child"
+path = "src/verify_child.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

@@ -17,7 +17,7 @@ pub fn parse_bytes(input: &[u8]) -> Result<EnvMap, std::str::Utf8Error> {
 }
 
 fn normalize_newlines(input: &str) -> Cow<'_, str> {
-    if !input.as_bytes().contains(&b'\r') {
+    if memchr::memchr(b'\r', input.as_bytes()).is_none() {
         return Cow::Borrowed(input);
     }
     let mut output = String::with_capacity(input.len());
@@ -58,14 +58,14 @@ fn parse_normalized(input: &str) -> EnvMap {
     let mut i = 0;
 
     while i < len {
-        while i < len
-            && (matches!(bytes[i], b' ' | b'\t' | b'\n') || input[i..].starts_with('\u{feff}'))
-        {
-            i += if input[i..].starts_with('\u{feff}') {
-                3
+        while i < len {
+            if matches!(bytes[i], b' ' | b'\t' | b'\n') {
+                i += 1;
+            } else if bytes[i..].starts_with(b"\xef\xbb\xbf") {
+                i += 3;
             } else {
-                1
-            };
+                break;
+            }
         }
         if i >= len {
             break;
@@ -160,9 +160,7 @@ fn parse_quoted(input: &str, i: &mut usize) -> String {
 fn parse_unquoted(input: &str, i: &mut usize) -> String {
     let bytes = input.as_bytes();
     let start = *i;
-    while *i < bytes.len() && !matches!(bytes[*i], b'#' | b'\n') {
-        *i += 1;
-    }
+    *i += memchr::memchr2(b'#', b'\n', &bytes[*i..]).unwrap_or(bytes.len() - *i);
     let mut end = *i;
     while end > start && is_horizontal_space(bytes[end - 1]) {
         end -= 1;
@@ -200,9 +198,6 @@ fn expand_newlines(raw: &str) -> String {
 }
 
 #[inline]
-fn skip_line(bytes: &[u8], mut i: usize) -> usize {
-    while i < bytes.len() && bytes[i] != b'\n' {
-        i += 1;
-    }
-    i
+fn skip_line(bytes: &[u8], i: usize) -> usize {
+    i + memchr::memchr(b'\n', &bytes[i..]).unwrap_or(bytes.len() - i)
 }

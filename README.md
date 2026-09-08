@@ -88,3 +88,26 @@ publishes them as an artifact. See
 [`benchmarks/README.md`](benchmarks/README.md) for scope and reproduction details,
 and [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for provenance and
 licenses.
+
+### Latest CI benchmark results
+
+[GitHub Actions run #34228346224](https://github.com/imranbarbhuiya/dotenv/actions/runs/34228346224)
+on September 8, 2026, at commit
+[`e45085e`](https://github.com/imranbarbhuiya/dotenv/commit/e45085e40c49a854c42abdb97b786c769983a421).
+The clean Ubuntu runner used an AMD EPYC 7763 with four logical CPUs, Rust
+1.93.0, Node.js 22.19.0, and Hyperfine 1.19.0. Each command loaded 1,000 literal
+entries and launched the shared verifier. All five passed the complete-value and
+byte-for-byte output checks before timing. Results use 20 measured runs after
+three warmups.
+
+| Implementation | Mean ± standard deviation | Min | Max | Relative |
+| --- | ---: | ---: | ---: | ---: |
+| **dotenv-rs-fast (native CLI)** | **4.6 ± 0.1 ms** | **4.4 ms** | **4.9 ms** | **1.00×** |
+| Rust dotenv 0.15.0 (benchmark wrapper) | 4.7 ± 0.2 ms | 4.5 ms | 5.0 ms | 1.01 ± 0.04× |
+| Rust dotenv-ng 1.0.0 (native CLI) | 5.1 ± 0.2 ms | 4.9 ms | 5.6 ms | 1.10 ± 0.05× |
+| npm dotenv 17.4.2 (benchmark wrapper) | 49.8 ± 2.6 ms | 47.2 ms | 56.8 ms | 10.75 ± 0.62× |
+| npm dotenv-expand 1000.0.0 + dotenv parser (benchmark wrapper) | 228.8 ± 6.5 ms | 219.7 ms | 246.6 ms | 49.40 ± 1.85× |
+
+The workflow uploads the raw Hyperfine JSON, generated Markdown table, and full
+machine metadata as its `cli-benchmark-e45085e...` artifact. Run
+`./benchmarks/compare.sh` to reproduce the same benchmark locally.

@@ -1,1 +1,5 @@
-/target
+/target/
+/benchmarks/node_modules/
+/benchmarks/package-lock.json
+/benchmarks/fixture.env
+.env

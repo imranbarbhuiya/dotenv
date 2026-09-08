@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node generate.mjs",
+    "bench": "./compare.sh"
+  },
+  "dependencies": {
+    "dotenv": "17.4.2",
+    "dotenv-extra": "0.10.0"
+  }
+}
+

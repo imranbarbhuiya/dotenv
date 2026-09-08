@@ -1,8 +1,8 @@
+use indexmap::IndexMap;
 use std::borrow::Cow;
-use std::collections::HashMap;
 
 /// Parsed environment entries. As in upstream `dotenv`, the last duplicate wins.
-pub type EnvMap = HashMap<String, String>;
+pub type EnvMap = IndexMap<String, String>;
 
 /// Parse UTF-8 dotenv text with the syntax supported by `motdotla/dotenv`.
 #[must_use]

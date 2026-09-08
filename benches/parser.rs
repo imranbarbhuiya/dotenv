@@ -1,4 +1,5 @@
 use criterion::{BatchSize, Criterion, Throughput, criterion_group, criterion_main};
+use dotenv::{EnvMap, ExpandOptions};
 use std::hint::black_box;
 use std::io::Write;
 
@@ -6,9 +7,14 @@ fn fixture(entries: usize) -> String {
     let mut text = String::with_capacity(entries * 48);
     for i in 0..entries {
         use std::fmt::Write as _;
-        let _ = writeln!(text, "KEY_{i}=value-{i} # comment");
+        if i > 0 && i % 4 == 0 {
+            let previous = i - 1;
+            let _ = writeln!(text, "KEY_{i}=prefix-$KEY_{previous}-{i} # expansion");
+        } else {
+            let _ = writeln!(text, "KEY_{i}=value-{i} # comment");
+        }
     }
-    text.push_str("MULTILINE=\"first\\nsecond\"\nexport LAST_KEY=last\n");
+    text.push_str("MULTILINE=\"first\\nsecond\"\nFINAL_URL=https://${KEY_1}/${KEY_2:-fallback}\n");
     text
 }
 
@@ -23,6 +29,23 @@ fn parser_benchmarks(c: &mut Criterion) {
 
         group.bench_function("this/read+parse", |b| {
             b.iter(|| black_box(dotenv::load_from_path(black_box(&path)).unwrap()))
+        });
+        group.bench_function("this/read+parse+expand", |b| {
+            let process_env = EnvMap::new();
+            b.iter(|| {
+                let parsed = dotenv::load_from_path(black_box(&path)).unwrap();
+                black_box(
+                    dotenv::expand_with(
+                        &parsed,
+                        &process_env,
+                        ExpandOptions {
+                            command_substitution: false,
+                            process_env_precedence: false,
+                        },
+                    )
+                    .unwrap(),
+                )
+            })
         });
         group.bench_function("rust-dotenv-0.15/read+parse", |b| {
             b.iter(|| {
@@ -39,6 +62,7 @@ fn parser_benchmarks(c: &mut Criterion) {
                 black_box(
                     dotenv_ng_upstream::EnvLoader::with_path(black_box(&path))
                         .sequence(dotenv_ng_upstream::EnvSequence::InputOnly)
+                        .substitution(true)
                         .load()
                         .unwrap(),
                 )

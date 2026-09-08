@@ -1,0 +1,60 @@
+name: Release binaries
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            executable: dotenv
+          - runner: macos-13
+            target: x86_64-apple-darwin
+            executable: dotenv
+          - runner: macos-14
+            target: aarch64-apple-darwin
+            executable: dotenv
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            executable: dotenv.exe
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: cargo build --locked --release --bin dotenv --target "${{ matrix.target }}"
+        shell: bash
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          archive="dotenv-${GITHUB_REF_NAME:-dev}-${{ matrix.target }}.tar.gz"
+          tar -C "target/${{ matrix.target }}/release" -czf "dist/$archive" "${{ matrix.executable }}"
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotenv-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" artifacts/* --generate-notes --verify-tag

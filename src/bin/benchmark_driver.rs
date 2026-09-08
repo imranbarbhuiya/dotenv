@@ -1,4 +1,4 @@
-use dotenv::{DotenvEditor, parse};
+use dotenv::{EnvMap, ExpandOptions, expand_with, parse};
 use std::env;
 use std::fs;
 use std::hint::black_box;
@@ -31,20 +31,32 @@ fn main() -> ExitCode {
                 checksum = checksum.wrapping_add(black_box(parse(black_box(&input))).len());
             }
         }
-        "extra" => {
+        "expand" => {
+            let input = match fs::read_to_string(path) {
+                Ok(input) => input,
+                Err(error) => {
+                    eprintln!("{error}");
+                    return ExitCode::FAILURE;
+                }
+            };
+            let process_env = EnvMap::new();
             for _ in 0..iterations {
-                let mut editor = match DotenvEditor::open(black_box(&path)) {
-                    Ok(editor) => editor,
+                let parsed = parse(black_box(&input));
+                let expanded = match expand_with(
+                    &parsed,
+                    &process_env,
+                    ExpandOptions {
+                        command_substitution: false,
+                        process_env_precedence: false,
+                    },
+                ) {
+                    Ok(expanded) => expanded,
                     Err(error) => {
                         eprintln!("{error}");
                         return ExitCode::FAILURE;
                     }
                 };
-                if editor.upsert("BENCHMARK_TARGET", "updated value").is_err() {
-                    return ExitCode::FAILURE;
-                }
-                checksum = checksum.wrapping_add(black_box(editor.dump()).len());
-                checksum = checksum.wrapping_add(black_box(editor.render()).len());
+                checksum = checksum.wrapping_add(black_box(expanded).len());
             }
         }
         _ => return usage(),
@@ -54,6 +66,6 @@ fn main() -> ExitCode {
 }
 
 fn usage() -> ExitCode {
-    eprintln!("usage: dotenv-bench-driver <parse|extra> <file> [iterations]");
+    eprintln!("usage: dotenv-bench-driver <parse|expand> <file> [iterations]");
     ExitCode::FAILURE
 }

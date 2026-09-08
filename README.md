@@ -1,89 +1,79 @@
 # dotenv-rs-fast
 
-A clean-room Rust implementation of the behavior exposed by npm
-[`dotenv` 17.4.2](https://github.com/motdotla/dotenv/tree/v17.4.2), plus the
-formatting-preserving editor features from npm
-[`dotenv-extra` 0.10.0](https://github.com/kermage/dotenv-extra/tree/v0.10.0).
+A fast Rust dotenv parser, variable expander, loader, and command runner. It
+targets npm [`dotenv` 17.4.2](https://github.com/motdotla/dotenv/tree/v17.4.2)
+and npm [`dotenv-expand` 1000.0.0](https://github.com/dotenvx/dotenv-expand/tree/v1000.0.0).
 
-The hot parser is a single-pass byte scanner. It has no regular expressions and
-the library has no runtime dependencies. The editor builds a key-to-line index
-once, making updates O(1) while preserving comments, blank lines, line endings,
-and the presence or absence of the final newline.
+The parser uses a single-pass byte scanner without regular expressions. Parsed
+entries retain insertion order because dotenv-expand applies values
+progressively and ordering is observable.
 
-## Parse and load
+## Library
 
 ```rust
-use dotenv::{load_from_path, parse};
+use dotenv::{expand, parse};
 
-let values = parse("HOST=localhost\nPORT=3000");
-assert_eq!(values["HOST"], "localhost");
-
-let values = load_from_path(".env")?;
-# Ok::<(), std::io::Error>(())
+let parsed = parse("HOST=localhost\nURL=https://${HOST}/api");
+let values = expand(&parsed)?;
+assert_eq!(values["URL"], "https://localhost/api");
+# Ok::<(), dotenv::ExpandError>(())
 ```
 
-Supported npm-dotenv syntax includes `export`, `=` and whitespace-followed `:`
-separators, LF/CRLF/CR files, UTF-8 BOMs, comments, single/double/backtick
-quotes, physical multiline quoted values, and `\\n`/`\\r` expansion inside
-double quotes. Duplicate keys use the last value.
+Parsing supports comments, `export`, `=` and whitespace-followed `:`
+separators, UTF-8 BOMs, CR/LF/CRLF, single/double/backtick quotes, multiline
+quoted values, and escaped newlines in double quotes.
 
-`load()` searches the current directory and its ancestors for `.env` without
-mutating the process environment. `populate()` merges into an explicit map with
-an opt-in override policy. Avoiding hidden global environment mutation keeps the
-API safe in multithreaded Rust programs.
+Expansion supports `$NAME`, `${NAME}`, default and alternate operators,
+required operators, nesting, progressive expansion, escaped dollar signs, and
+`$(command)` substitution. Command substitution executes with the user's shell
+and must only be enabled for trusted files. It can be disabled through
+`ExpandOptions` or the CLI. Dotenvx `encrypted:` values are decrypted before
+expansion when `DOTENV_PRIVATE_KEY` is present and remain unchanged without it.
 
-## Edit without destroying formatting
+## CLI
 
-```rust
-use dotenv::DotenvEditor;
+Install from a checkout:
 
-let mut file = DotenvEditor::open(".env")?;
-file.upsert("APP_ENV", "production")?
-    .upsert("MESSAGE", "hello # world")?;
-file.save()?;
-# Ok::<(), dotenv::EditorError>(())
+```bash
+cargo install --path . --bin dotenv
 ```
 
-The editor matches dotenv-extra's active-vs-commented lookup, last-duplicate
-update, safe quoting, reactivation, CR/LF/CRLF preservation, and newline
-injection rejection. Files with mixed line endings are rejected rather than
-silently rewritten.
+Run commands or print the resulting entries:
 
-## Tests
+```bash
+dotenv -- cargo run
+dotenv --file .env.production --override -- ./server
+dotenv --file .env.production
+```
+
+```text
+-f, --file PATH                Load PATH; repeat to layer files
+    --override                 File values replace inherited variables
+    --no-expand                Disable variable expansion
+    --no-command-substitution  Disable $(command) evaluation
+```
+
+Tagged releases build downloadable binaries for Linux, Intel/Apple Silicon
+macOS, and Windows. Extract the appropriate archive and place `dotenv` (or
+`dotenv.exe`) on `PATH`.
+
+## Tests and benchmarks
 
 ```bash
 cargo test --all-targets
 cargo clippy --all-targets -- -D warnings
-```
-
-Compatibility tests are adapted from all four upstream projects used as
-references. npm-specific cases include BOM handling, multiline quotes,
-backticks, colon assignments, inline comments, formatting round trips,
-reactivation, duplicate handling, and 100,000-backslash linear-time guards.
-See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for exact versions,
-commits, and licenses.
-
-## Benchmarks
-
-| Harness | Implementations | Measurement |
-| --- | --- | --- |
-| Criterion | this crate, Rust `dotenv` 0.15.0, Rust `dotenv-ng` 1.0.0 | identical persistent fixture; open + read + parse + allocate |
-| Hyperfine batch runner | this crate, npm `dotenv` 17.4.2 regex, npm `dotenv` fast scanner | identical preloaded bytes parsed repeatedly per process |
-| Hyperfine batch runner | this editor, npm `dotenv-extra` 0.10.0 | open + parse + update + dump + render repeatedly per process |
-
-Run Rust-only benchmarks:
-
-```bash
 cargo bench
 ```
 
-Run the complete Rust/npm comparison (requires Node.js 24+ and `hyperfine`):
+Criterion compares this crate with Rust `dotenv` 0.15.0 and `dotenv-ng`
+1.0.0. The external suite adds npm `dotenv`'s regular and fast parsers and npm
+`dotenv-expand`:
 
 ```bash
 cd benchmarks
 ./compare.sh 100
 ```
 
-The repetition count is passed to each batch runner, amortizing Node and Rust
-process startup rather than presenting startup time as parser time. The fixture
-is generated locally and is not committed.
+The runners repeat work inside each process so startup does not dominate parser
+measurements. See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for test
+provenance and licenses.

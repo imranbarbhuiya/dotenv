@@ -3,7 +3,7 @@ name = "dotenv-rs-fast"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "A fast dotenv parser, loader, and formatting-preserving editor"
+description = "A fast dotenv parser, variable expander, loader, and CLI"
 license = "MIT"
 repository = "https://github.com/imranbarbhuiya/dotenv"
 readme = "README.md"
@@ -17,7 +17,13 @@ name = "dotenv"
 name = "dotenv-bench-driver"
 path = "src/bin/benchmark_driver.rs"
 
+[[bin]]
+name = "dotenv"
+path = "src/main.rs"
+
 [dependencies]
+dotenvx-primitives = "=2.2.0"
+indexmap = "2.11"
 
 [dev-dependencies]
 criterion = "0.7"
@@ -27,10 +33,6 @@ dotenv-ng-upstream = { package = "dotenv-ng", version = "=1.0.0", default-featur
 
 [[bench]]
 name = "parser"
-harness = false
-
-[[bench]]
-name = "editor"
 harness = false
 
 [profile.release]

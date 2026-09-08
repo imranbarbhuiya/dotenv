@@ -18,7 +18,7 @@ hyperfine --warmup 3 --runs 10 \
   --command-name 'npm dotenv regex' "node node-runner.mjs parse fixture.env $iterations" \
   --command-name 'npm dotenv fast' "node node-runner.mjs parse-fast fixture.env $iterations"
 
-echo 'Batched editor comparison: this crate vs npm dotenv-extra 0.10.0'
+echo 'Batched parser + expansion comparison: this crate vs npm dotenv + dotenv-expand'
 hyperfine --warmup 3 --runs 10 \
-  --command-name 'this Rust editor' "../target/release/dotenv-bench-driver extra fixture.env $iterations" \
-  --command-name 'npm dotenv-extra' "node node-runner.mjs extra fixture.env $iterations"
+  --command-name 'this Rust parse + expand' "../target/release/dotenv-bench-driver expand fixture.env $iterations" \
+  --command-name 'npm dotenv + dotenv-expand' "node node-runner.mjs expand fixture.env $iterations"
